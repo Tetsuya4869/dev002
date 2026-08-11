@@ -3,29 +3,17 @@ import Moore57.Holonomy
 /-!
 # Exhaustion of all symbols by direct and two-step routes
 
-Fix two distinct non-base branches `i,j` and a starting symbol `x`.  There are
-exactly 56 route labels available: one distinguished label represents the
-stationary/base route and another the direct edge; every other non-base branch
-represents a genuine two-step route `i -> k -> j`.
-
-The triangle and quadrilateral holonomy constraints make the 56 resulting
-endpoints pairwise distinct.  When the non-base branch set and symbol set have
-the same finite cardinality, this endpoint map is therefore a bijection.
-
-For the degree-57 Moore reduction both sets have cardinality 56.  Equivalently,
-the 54 genuine intermediate routes exhaust precisely the 54 symbols other than
-`x` and the direct endpoint `phi i j x`.
+Fix two distinct non-base branches `i,j` and a starting symbol `x`. There are
+exactly 56 route labels available: `i` represents the stationary/base route,
+`j` the direct edge, and every other non-base branch a genuine two-step route.
+The short-cycle constraints force all 56 endpoints to be distinct; equal finite
+cardinalities therefore make the route map bijective.
 -/
 
 namespace Moore57
 
 universe u v
 
-/--
-A 56-route endpoint map.  We use the branch label `i` for the stationary/base
-route, `j` for the direct route, and every other branch label `k` for the
-actual two-step route through `k`.
--/
 noncomputable def routeEndpoint {I : Type u} {S : Type v} (D : ShortCycleSystem I S)
     (i j : NonBase D) (x : S) (r : NonBase D) : S := by
   classical
@@ -43,7 +31,7 @@ noncomputable def routeEndpoint {I : Type u} {S : Type v} (D : ShortCycleSystem 
     (D : ShortCycleSystem I S) {i j : NonBase D} (hij : i ≠ j) (x : S) :
     routeEndpoint D i j x j = D.phi i.1 j.1 x := by
   classical
-  simp [routeEndpoint, hij]
+  simp [routeEndpoint, Ne.symm hij]
 
 @[simp] theorem routeEndpoint_at_other {I : Type u} {S : Type v}
     (D : ShortCycleSystem I S) {i j r : NonBase D}
@@ -52,48 +40,49 @@ noncomputable def routeEndpoint {I : Type u} {S : Type v} (D : ShortCycleSystem 
   classical
   simp [routeEndpoint, hri, hrj]
 
-/-- The full 56-route endpoint map is injective. -/
+/-- The full route endpoint map is injective. -/
 theorem routeEndpoint_injective {I : Type u} {S : Type v}
     (D : ShortCycleSystem I S) {i j : NonBase D} (hij : i ≠ j) (x : S) :
     Function.Injective (routeEndpoint D i j x) := by
   classical
+  have hji : j ≠ i := Ne.symm hij
   intro r s hrs
   by_cases hri : r = i
   · by_cases hsi : s = i
     · exact hri.trans hsi.symm
     · by_cases hsj : s = j
       · have heq : x = D.phi i.1 j.1 x := by
-          simpa [routeEndpoint, hri, hsi, hsj] using hrs
+          simpa [routeEndpoint, hri, hsi, hsj, hji] using hrs
         exact False.elim ((direct_ne_self D hij x) heq.symm)
       · have heq : x = twoStep D i j s x := by
-          simpa [routeEndpoint, hri, hsi, hsj] using hrs
+          simpa [routeEndpoint, hri, hsi, hsj, hji] using hrs
         exact False.elim
           ((twoStep_ne_self D hij (Ne.symm hsi) hsj x) heq.symm)
   · by_cases hrj : r = j
     · by_cases hsi : s = i
       · have heq : D.phi i.1 j.1 x = x := by
-          simpa [routeEndpoint, hri, hrj, hsi] using hrs
+          simpa [routeEndpoint, hri, hrj, hsi, hji] using hrs
         exact False.elim ((direct_ne_self D hij x) heq)
       · by_cases hsj : s = j
         · exact hrj.trans hsj.symm
         · have heq : D.phi i.1 j.1 x = twoStep D i j s x := by
-            simpa [routeEndpoint, hri, hrj, hsi, hsj] using hrs
+            simpa [routeEndpoint, hri, hrj, hsi, hsj, hji] using hrs
           exact False.elim
             ((twoStep_ne_direct D hij (Ne.symm hsi) hsj x) heq.symm)
     · by_cases hsi : s = i
       · have heq : twoStep D i j r x = x := by
-          simpa [routeEndpoint, hri, hrj, hsi] using hrs
+          simpa [routeEndpoint, hri, hrj, hsi, hji] using hrs
         exact False.elim
           ((twoStep_ne_self D hij (Ne.symm hri) hrj x) heq)
       · by_cases hsj : s = j
         · have heq : twoStep D i j r x = D.phi i.1 j.1 x := by
-            simpa [routeEndpoint, hri, hrj, hsi, hsj] using hrs
+            simpa [routeEndpoint, hri, hrj, hsi, hsj, hji] using hrs
           exact False.elim
             ((twoStep_ne_direct D hij (Ne.symm hri) hrj x) heq)
         · by_cases hrsEq : r = s
           · exact hrsEq
           · have heq : twoStep D i j r x = twoStep D i j s x := by
-              simpa [routeEndpoint, hri, hrj, hsi, hsj] using hrs
+              simpa [routeEndpoint, hri, hrj, hsi, hsj, hji] using hrs
             exact False.elim
               ((twoStep_ne_twoStep D hij
                 (Ne.symm hri) hrj (Ne.symm hsi) hsj hrsEq x) heq)
@@ -122,8 +111,7 @@ theorem routeEndpoint_order56_bijective
 
 /--
 Every symbol other than `x` and the direct endpoint is reached by a unique
-proper intermediate branch.  This is the local 54-by-54 exhaustion statement
-used by the finite search encoding.
+proper intermediate branch.
 -/
 theorem existsUnique_intermediate_for_target
     {I : Type u} {S : Type v} (D : ShortCycleSystem I S)
@@ -133,6 +121,7 @@ theorem existsUnique_intermediate_for_target
     (hyx : y ≠ x) (hyd : y ≠ D.phi i.1 j.1 x) :
     ∃! k : Intermediate D i j, twoStep D i j k.1 x = y := by
   classical
+  have hji : j ≠ i := Ne.symm hij
   obtain ⟨r, hr⟩ := (routeEndpoint_bijective_of_card_eq D hij x hcard).2 y
   have hri : r ≠ i := by
     intro hri
@@ -142,14 +131,14 @@ theorem existsUnique_intermediate_for_target
   have hrj : r ≠ j := by
     intro hrj
     subst r
-    simp [routeEndpoint, hij] at hr
+    simp [routeEndpoint, hji] at hr
     exact hyd hr.symm
   let k : Intermediate D i j := ⟨r, hri, hrj⟩
   have hk : twoStep D i j k.1 x = y := by
-    simpa [k, routeEndpoint, hri, hrj] using hr
+    simpa [k, routeEndpoint, hri, hrj, hji] using hr
   refine ⟨k, hk, ?_⟩
   intro l hl
   apply twoStep_injective_intermediate D hij x
-  exact hk.trans hl.symm
+  exact hl.trans hk.symm
 
 end Moore57
