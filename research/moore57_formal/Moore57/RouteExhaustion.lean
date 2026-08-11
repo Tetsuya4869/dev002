@@ -26,32 +26,37 @@ A 56-route endpoint map.  We use the branch label `i` for the stationary/base
 route, `j` for the direct route, and every other branch label `k` for the
 actual two-step route through `k`.
 -/
-def routeEndpoint {I : Type u} {S : Type v} (D : ShortCycleSystem I S)
-    (i j : NonBase D) (x : S) (r : NonBase D) : S :=
-  if r = i then x
-  else if r = j then D.phi i.1 j.1 x
-  else twoStep D i j r x
+noncomputable def routeEndpoint {I : Type u} {S : Type v} (D : ShortCycleSystem I S)
+    (i j : NonBase D) (x : S) (r : NonBase D) : S := by
+  classical
+  exact if r = i then x
+    else if r = j then D.phi i.1 j.1 x
+    else twoStep D i j r x
 
 @[simp] theorem routeEndpoint_at_i {I : Type u} {S : Type v}
     (D : ShortCycleSystem I S) (i j : NonBase D) (x : S) :
     routeEndpoint D i j x i = x := by
+  classical
   simp [routeEndpoint]
 
 @[simp] theorem routeEndpoint_at_j {I : Type u} {S : Type v}
     (D : ShortCycleSystem I S) {i j : NonBase D} (hij : i ≠ j) (x : S) :
     routeEndpoint D i j x j = D.phi i.1 j.1 x := by
+  classical
   simp [routeEndpoint, hij]
 
 @[simp] theorem routeEndpoint_at_other {I : Type u} {S : Type v}
     (D : ShortCycleSystem I S) {i j r : NonBase D}
     (hri : r ≠ i) (hrj : r ≠ j) (x : S) :
     routeEndpoint D i j x r = twoStep D i j r x := by
+  classical
   simp [routeEndpoint, hri, hrj]
 
 /-- The full 56-route endpoint map is injective. -/
 theorem routeEndpoint_injective {I : Type u} {S : Type v}
     (D : ShortCycleSystem I S) {i j : NonBase D} (hij : i ≠ j) (x : S) :
     Function.Injective (routeEndpoint D i j x) := by
+  classical
   intro r s hrs
   by_cases hri : r = i
   · by_cases hsi : s = i
@@ -127,6 +132,7 @@ theorem existsUnique_intermediate_for_target
     (hcard : Fintype.card (NonBase D) = Fintype.card S)
     (hyx : y ≠ x) (hyd : y ≠ D.phi i.1 j.1 x) :
     ∃! k : Intermediate D i j, twoStep D i j k.1 x = y := by
+  classical
   obtain ⟨r, hr⟩ := (routeEndpoint_bijective_of_card_eq D hij x hcard).2 y
   have hri : r ≠ i := by
     intro hri
@@ -139,10 +145,11 @@ theorem existsUnique_intermediate_for_target
     simp [routeEndpoint, hij] at hr
     exact hyd hr.symm
   let k : Intermediate D i j := ⟨r, hri, hrj⟩
-  refine ⟨k, ?_, ?_⟩
-  · simpa [k, routeEndpoint, hri, hrj] using hr
-  · intro l hl
-    apply Subtype.ext
-    exact (twoStep_injective_intermediate D hij x) hl
+  have hk : twoStep D i j k.1 x = y := by
+    simpa [k, routeEndpoint, hri, hrj] using hr
+  refine ⟨k, hk, ?_⟩
+  intro l hl
+  apply twoStep_injective_intermediate D hij x
+  exact hk.trans hl.symm
 
 end Moore57
