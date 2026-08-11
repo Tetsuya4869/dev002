@@ -82,6 +82,8 @@ theorem latinEntry_injective_second {I : Type u} {S : Type v}
     (D : ShortCycleSystem I S) (i : NonBase D) (x : S) :
     Function.Injective (fun r : NonBase D => latinEntry D i r x) := by
   intro r s hrs
+  have hrs' : D.phi i.1 r.1 x = D.phi i.1 s.1 x := by
+    simpa [latinEntry] using hrs
   apply Subtype.ext
   by_contra hrsne
   by_cases hri : r.1 = i.1
@@ -91,25 +93,25 @@ theorem latinEntry_injective_second {I : Type u} {S : Type v}
       exact hri.trans his
     have hfix : D.phi i.1 s.1 x = x := by
       calc
-        D.phi i.1 s.1 x = D.phi i.1 r.1 x := hrs.symm
+        D.phi i.1 s.1 x = D.phi i.1 r.1 x := hrs'.symm
         _ = D.phi i.1 i.1 x := by rw [hri]
-        _ = x := by rw [D.diag]
+        _ = x := by simp [D.diag]
     exact (D.offdiag_fixedPointFree i.2 s.2 his x) hfix
   · by_cases hsi : s.1 = i.1
-    · have hir : i.1 ≠ r.1 := hri.symm
+    · have hir : i.1 ≠ r.1 := Ne.symm hri
       have hfix : D.phi i.1 r.1 x = x := by
         calc
-          D.phi i.1 r.1 x = D.phi i.1 s.1 x := hrs
+          D.phi i.1 r.1 x = D.phi i.1 s.1 x := hrs'
           _ = D.phi i.1 i.1 x := by rw [hsi]
-          _ = x := by rw [D.diag]
+          _ = x := by simp [D.diag]
       exact (D.offdiag_fixedPointFree i.2 r.2 hir x) hfix
     · have hcycle := D.no4
         (i := i.1) (j := r.1) (k := D.base) (l := s.1)
-        hri.symm r.2 s.2.symm hsi i.2 hrsne x
+        (Ne.symm hri) r.2 s.2.symm hsi i.2 hrsne x
       have hneq : D.phi s.1 i.1 (D.phi i.1 r.1 x) ≠ x := by
         simpa [D.normalized s.1, D.phi_toBase r.1] using hcycle
       have heq : D.phi s.1 i.1 (D.phi i.1 r.1 x) = x := by
-        rw [hrs, D.rev i.1 s.1]
+        rw [hrs', D.rev i.1 s.1]
         simp
       exact hneq heq
 
@@ -121,6 +123,8 @@ theorem latinEntry_injective_first {I : Type u} {S : Type v}
     (D : ShortCycleSystem I S) (r : NonBase D) (x : S) :
     Function.Injective (fun i : NonBase D => latinEntry D i r x) := by
   intro i j hijval
+  have hijval' : D.phi i.1 r.1 x = D.phi j.1 r.1 x := by
+    simpa [latinEntry] using hijval
   apply Subtype.ext
   by_contra hij
   by_cases hir : i.1 = r.1
@@ -130,25 +134,25 @@ theorem latinEntry_injective_first {I : Type u} {S : Type v}
       exact hir.trans hjr.symm
     have hfix : D.phi j.1 r.1 x = x := by
       calc
-        D.phi j.1 r.1 x = D.phi i.1 r.1 x := hijval.symm
+        D.phi j.1 r.1 x = D.phi i.1 r.1 x := hijval'.symm
         _ = D.phi r.1 r.1 x := by rw [hir]
-        _ = x := by rw [D.diag]
+        _ = x := by simp [D.diag]
     exact (D.offdiag_fixedPointFree j.2 r.2 hjr x) hfix
   · by_cases hjr : j.1 = r.1
     · have hir' : i.1 ≠ r.1 := hir
       have hfix : D.phi i.1 r.1 x = x := by
         calc
-          D.phi i.1 r.1 x = D.phi j.1 r.1 x := hijval
+          D.phi i.1 r.1 x = D.phi j.1 r.1 x := hijval'
           _ = D.phi r.1 r.1 x := by rw [hjr]
-          _ = x := by rw [D.diag]
+          _ = x := by simp [D.diag]
       exact (D.offdiag_fixedPointFree i.2 r.2 hir' x) hfix
     · have hcycle := D.no4
         (i := D.base) (j := i.1) (k := r.1) (l := j.1)
-        i.2.symm hir hjr.symm j.2 r.2.symm hij x
+        i.2.symm hir (Ne.symm hjr) j.2 r.2.symm hij x
       have hneq : D.phi r.1 j.1 (D.phi i.1 r.1 x) ≠ x := by
         simpa [D.normalized i.1, D.phi_toBase j.1] using hcycle
       have heq : D.phi r.1 j.1 (D.phi i.1 r.1 x) = x := by
-        rw [hijval, D.rev j.1 r.1]
+        rw [hijval', D.rev j.1 r.1]
         simp
       exact hneq heq
 
@@ -185,8 +189,7 @@ theorem latinEntry_symm_of_involutive {I : Type u} {S : Type v}
 theorem latinEntry_diag {I : Type u} {S : Type v}
     (D : ShortCycleSystem I S) (i : NonBase D) (x : S) :
     latinEntry D i i x = x := by
-  rw [latinEntry, D.diag]
-  rfl
+  simp [latinEntry, D.diag]
 
 /-- Off-diagonal fibres are fixed-point-free, independently of the involution assumption. -/
 theorem latinEntry_offdiag_ne {I : Type u} {S : Type v}
