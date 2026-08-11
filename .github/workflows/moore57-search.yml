@@ -1,0 +1,43 @@
+name: Moore57 all-involution search
+
+on:
+  push:
+    branches:
+      - agent/moore57-formal-verification
+    paths:
+      - 'research/moore57_formal/search/**'
+      - '.github/workflows/moore57-search.yml'
+  workflow_dispatch:
+
+jobs:
+  cpsat:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        case:
+          - { name: hs-scale, n: 6, t: 6, seconds: 60 }
+          - { name: moore56-t6, n: 56, t: 6, seconds: 90 }
+          - { name: moore56-t8, n: 56, t: 8, seconds: 120 }
+          - { name: moore56-t10, n: 56, t: 10, seconds: 180 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install OR-Tools
+        run: python -m pip install 'ortools==9.15.6755'
+      - name: Run restricted all-involution search
+        run: |
+          mkdir -p research/moore57_formal/search/results
+          python research/moore57_formal/search/all_involution_cp_sat.py \
+            --n ${{ matrix.case.n }} \
+            --t ${{ matrix.case.t }} \
+            --seconds ${{ matrix.case.seconds }} \
+            --workers 4 \
+            --seed 1 \
+            --output research/moore57_formal/search/results/${{ matrix.case.name }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.case.name }}
+          path: research/moore57_formal/search/results/${{ matrix.case.name }}.json
