@@ -54,6 +54,8 @@ theorem adj_symm {B : Type u} {G : Type v} [Group G]
     (D : MatchingData B G) {v w : Vertex B G} : Adj D v w → Adj D w v := by
   intro h
   cases v <;> cases w <;> simp [Adj] at h ⊢
+  case branch.leaf => exact h
+  case leaf.branch => exact h
   case leaf.leaf i x j y =>
     rcases h with ⟨hij, hxy⟩
     refine ⟨Ne.symm hij, ?_⟩
