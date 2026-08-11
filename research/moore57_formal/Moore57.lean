@@ -1,1 +1,1 @@
-import Moore57.CommonGroupCase
+import Moore57.FixedPoints
