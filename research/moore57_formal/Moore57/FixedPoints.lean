@@ -4,7 +4,7 @@ import Moore57.CommonGroupCase
 # Fixed points of the right-translation involution
 
 For a nonidentity group element `h`, simultaneous right multiplication fixes exactly
-the root and the branch vertices of the rooted matching model.  Hence, when there are
+the root and the branch vertices of the rooted matching model. Hence, when there are
 57 branches, the constructed involution has exactly 58 fixed vertices.
 -/
 
@@ -70,7 +70,7 @@ From a group of cardinality 56 and 57 branches, one obtains an involutive relati
 automorphism whose underlying map has exactly 58 fixed vertices.
 -/
 theorem groupMatching_has_involution_with_58_fixedPoints
-    {B : Type u} {G : Type v} [Group G] [Finite B] [Finite G]
+    {B : Type u} {G : Type v} [Group G] [Finite B] [Finite G] [Nonempty B]
     (D : MatchingData B G) (hB : Nat.card B = 57) (hG : Nat.card G = 56) :
     ∃ a : InvolutiveRelAut (Adj D),
       Nat.card {z : Vertex B G // a.toFun z = z} = 58 := by
@@ -79,9 +79,7 @@ theorem groupMatching_has_involution_with_58_fixedPoints
     toFun := rightTranslate h
     map_rel_iff := adj_rightTranslate_iff D h
     involutive := rightTranslate_involutive h2
-    nontrivial := by
-      haveI : Nonempty B := Classical.choice inferInstance
-      exact rightTranslate_nontrivial hne
+    nontrivial := rightTranslate_nontrivial hne
   }
   refine ⟨a, ?_⟩
   change Nat.card {z : Vertex B G // rightTranslate h z = z} = 58
