@@ -85,4 +85,31 @@ theorem groupMatching_has_involution_with_58_fixedPoints
   change Nat.card {z : Vertex B G // rightTranslate h z = z} = 58
   exact natCard_fixedPoints_rightTranslate_eq_58 hne hB
 
+/--
+An abstract fixed-point theorem saying that every involutive relation automorphism has
+56 fixed vertices contradicts the order-56 group-matching construction on 57 branches.
+This is the formal trust boundary for importing the Higman--Makhnev--Paduchikh theorem.
+-/
+theorem no_groupMatching_of_fixedPointCount_56
+    {B : Type u} {G : Type v} [Group G] [Finite B] [Finite G] [Nonempty B]
+    (D : MatchingData B G) (hB : Nat.card B = 57) (hG : Nat.card G = 56)
+    (hFixed56 : ∀ a : InvolutiveRelAut (Adj D),
+      Nat.card {z : Vertex B G // a.toFun z = z} = 56) : False := by
+  obtain ⟨a, h58⟩ := groupMatching_has_involution_with_58_fixedPoints D hB hG
+  have h56 := hFixed56 a
+  omega
+
+/--
+Combining the common-group numerical bounds with an external 56-fixed-point theorem gives
+a contradiction. This packages the full new bridge used by the paper.
+-/
+theorem no_commonGroupCase_of_fixedPointCount_56
+    {B : Type u} {G : Type v} [Group G] [Finite B] [Finite G] [Nonempty B]
+    (D : MatchingData B G) (hB : Nat.card B = 57)
+    (hdvd : Nat.card G ∣ 56) (hge : 56 ≤ Nat.card G)
+    (hFixed56 : ∀ a : InvolutiveRelAut (Adj D),
+      Nat.card {z : Vertex B G // a.toFun z = z} = 56) : False := by
+  have hG : Nat.card G = 56 := eq_56_of_dvd_56_of_ge_56 hdvd hge
+  exact no_groupMatching_of_fixedPointCount_56 D hB hG hFixed56
+
 end Moore57
