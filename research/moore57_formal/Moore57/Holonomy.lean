@@ -47,13 +47,16 @@ theorem twoStep_ne_direct {I : Type u} {S : Type v}
     (hij : i ≠ j) (hik : i ≠ k) (hkj : k ≠ j) (x : S) :
     twoStep D i j k x ≠ D.phi i.1 j.1 x := by
   intro heq
+  have heq' :
+      D.phi k.1 j.1 (D.phi i.1 k.1 x) = D.phi i.1 j.1 x := by
+    simpa [twoStep] using heq
   have hcycle := D.no3
     (i := i.1) (j := k.1) (k := j.1)
     (fun h => hik (Subtype.ext h))
     (fun h => hkj (Subtype.ext h))
     (fun h => hij (Subtype.ext h.symm)) x
   apply hcycle
-  rw [twoStep, heq, D.rev i.1 j.1]
+  rw [heq', D.rev i.1 j.1]
   simp
 
 /--
@@ -68,17 +71,20 @@ theorem twoStep_ne_twoStep {I : Type u} {S : Type v}
     (hkl : k ≠ l) (x : S) :
     twoStep D i j k x ≠ twoStep D i j l x := by
   intro heq
+  have heq' :
+      D.phi k.1 j.1 (D.phi i.1 k.1 x) =
+        D.phi l.1 j.1 (D.phi i.1 l.1 x) := by
+    simpa [twoStep] using heq
   have hcycle := D.no4
     (i := i.1) (j := k.1) (k := j.1) (l := l.1)
     (fun h => hik (Subtype.ext h))
     (fun h => hkj (Subtype.ext h))
     (fun h => hlj (Subtype.ext h.symm))
-    (fun h => hil (Subtype.ext h))
+    (fun h => hil (Subtype.ext h.symm))
     (fun h => hij (Subtype.ext h))
     (fun h => hkl (Subtype.ext h)) x
   apply hcycle
-  rw [twoStep] at heq
-  rw [heq, D.rev l.1 j.1, D.rev i.1 l.1]
+  rw [heq', D.rev l.1 j.1, D.rev i.1 l.1]
   simp
 
 /-- Intermediate non-base branches for an ordered pair `(i,j)`. -/
@@ -93,7 +99,10 @@ theorem twoStep_injective_intermediate {I : Type u} {S : Type v}
   intro k l hval
   apply Subtype.ext
   by_contra hkl
-  exact twoStep_ne_twoStep D hij k.2.1 k.2.2 l.2.1 l.2.2 hkl x hval
+  exact twoStep_ne_twoStep D hij
+    (Ne.symm k.2.1) k.2.2
+    (Ne.symm l.2.1) l.2.2
+    hkl x hval
 
 /--
 The direct endpoint is different from the original symbol for distinct branches.
