@@ -57,7 +57,9 @@ theorem RawShortCycleSystem.gaugePhi_rev
     {I : Type u} {S : Type v} (D : RawShortCycleSystem I S) (b i j : I) :
     D.gaugePhi b j i = (D.gaugePhi b i j)⁻¹ := by
   ext x
-  simp [RawShortCycleSystem.gaugePhi, RawShortCycleSystem.gauge, D.rev]
+  change (D.gauge b i).symm (D.phi j i (D.gauge b j x)) =
+    (D.gauge b i).symm ((D.phi i j).symm (D.gauge b j x))
+  rw [D.rev i j]
 
 /-- Every base-to-branch matching becomes the identity. -/
 theorem RawShortCycleSystem.gaugePhi_base
