@@ -7,10 +7,6 @@ on:
     paths:
       - 'research/moore57_formal/**'
       - '.github/workflows/moore57-lean.yml'
-  pull_request:
-    paths:
-      - 'research/moore57_formal/**'
-      - '.github/workflows/moore57-lean.yml'
 
 jobs:
   build:
