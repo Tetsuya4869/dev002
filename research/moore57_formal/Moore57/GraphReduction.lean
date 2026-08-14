@@ -171,7 +171,8 @@ theorem RootedCoordinates.crossLabel_rev
   have hchosen : C.crossVertex (Ne.symm hij) (C.crossLabel hij x) = c := by
     apply huniq
     constructor
-    · exact C.adj_leaf_crossVertex (Ne.symm hij) (C.crossLabel hij x)
+    · rw [← hycoord]
+      exact C.adj_leaf_crossVertex (Ne.symm hij) (C.crossLabel hij x)
     · exact C.adj_branch_crossVertex (Ne.symm hij) (C.crossLabel hij x)
   have hx : (C.coord i x).1 = c := huniq (C.coord i x).1 hxcommon
   change C.crossVertex (Ne.symm hij) (C.crossLabel hij x) = (C.coord i x).1
