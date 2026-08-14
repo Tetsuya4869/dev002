@@ -57,7 +57,8 @@ theorem RestrictedAllInvolutionSystem.dualPartner_ne
   intro h
   have hp := R.p_dualPartner hcard x y a
   rw [h, R.diag a] at hp
-  simpa using hxy hp.symm
+  have hxy' : x = y := by simpa using hp
+  exact hxy hxy'
 
 /-- The dual partner operation is involutive on branches. -/
 theorem RestrictedAllInvolutionSystem.dualPartner_involutive
@@ -79,7 +80,7 @@ theorem RestrictedAllInvolutionSystem.dualPartner_involutive
 noncomputable def RestrictedAllInvolutionSystem.dualMatching
     {T : Type u} {S : Type v} (R : RestrictedAllInvolutionSystem T S)
     [Fintype T] [Fintype S] (hcard : Fintype.card T = Fintype.card S)
-    {x y : S} (hxy : x ≠ y) : Equiv.Perm T where
+    {x y : S} (_hxy : x ≠ y) : Equiv.Perm T where
   toFun := R.dualPartner hcard x y
   invFun := R.dualPartner hcard x y
   left_inv := R.dualPartner_involutive hcard x y
