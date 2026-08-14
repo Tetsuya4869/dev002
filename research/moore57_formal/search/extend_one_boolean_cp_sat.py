@@ -2,13 +2,13 @@
 """Boolean exact-cover encoding for adding one branch to a verified certificate.
 
 Unlike extend_one_cp_sat.py, this model has no permutation IntVars and no Element
-constraints.  Each unknown p_{i,q} is represented directly as a perfect matching of
+constraints. Each unknown p_{i,q} is represented directly as a perfect matching of
 K_n: one Boolean variable for every symbol edge not already used at the old star i.
 
 The remaining Moore constraints involving the new branch are compiled into:
   * exact-one incidence constraints for each new perfect matching;
   * edge-disjointness of the new matchings at the new star;
-  * at-most-one constraints for routes ending at the same symbol;
+  * exact route distinctness, including exclusion of the stationary endpoint;
   * binary clauses forbidding old-pair holonomy collisions through the new branch.
 
 The returned certificate is always replayed through verify_solution.py, whose checker
@@ -95,9 +95,12 @@ def solve(seed: dict, seconds: float, workers: int, random_seed: int) -> dict:
         aa, bb = ekey(a, b)
         return var.get((i, aa, bb))
 
-    # Pair (i,q): for each start x and target symbol y, at most one selected
-    # route term is allowed to end at y.  Inputs for the terms are all distinct.
+    # Pair (i,q): the route list contains the constant stationary endpoint x,
+    # the direct endpoint q_i(x), and all q_k(p_ik(x)).  For every target y,
+    # at most one variable route may end at y; when y=x, zero may end there
+    # because the stationary endpoint has already occupied that symbol.
     route_amo = 0
+    stationary_forbidden_literals = 0
     for i in range(t):
         for x in range(n):
             terms: list[tuple[int, int]] = [(i, x)]
@@ -112,7 +115,11 @@ def solve(seed: dict, seconds: float, workers: int, random_seed: int) -> dict:
                     v = edge_var(matching_index, input_symbol, y)
                     if v is not None:
                         lits.append(v)
-                if len(lits) > 1:
+                if y == x:
+                    for v in lits:
+                        model.Add(v == 0)
+                        stationary_forbidden_literals += 1
+                elif len(lits) > 1:
                     model.AddAtMostOne(lits)
                     route_amo += 1
 
@@ -150,9 +157,10 @@ def solve(seed: dict, seconds: float, workers: int, random_seed: int) -> dict:
         "n_symbols": n,
         "t_selected_branches": t + 1,
         "parent_branches": t,
-        "encoding": "boolean-edge-exact-cover",
+        "encoding": "boolean-edge-exact-cover-v2",
         "boolean_vars": len(var),
         "route_at_most_one_constraints": route_amo,
+        "stationary_forbidden_literals": stationary_forbidden_literals,
         "holonomy_binary_clauses": holonomy_clauses,
         "status": solver.StatusName(status),
         "wall_seconds_python": elapsed,
