@@ -1,0 +1,91 @@
+name: Moore57 diversify t10 seeds
+
+on:
+  push:
+    branches:
+      - agent/moore57-formal-verification
+    paths:
+      - 'research/moore57_formal/search/extend_one_dimacs.py'
+      - 'research/moore57_formal/search/decode_dimacs_model.py'
+      - 'research/moore57_formal/search/seeds/moore56-t9.json'
+      - '.github/workflows/moore57-diversify-t10.yml'
+  workflow_dispatch:
+
+jobs:
+  sample-and-extend:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CaDiCaL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cadical
+          cadical --version
+          cadical --help | grep -i seed | head || true
+      - name: Verify t9 seed
+        run: python research/moore57_formal/search/verify_solution.py research/moore57_formal/search/seeds/moore56-t9.json
+      - name: Compile t9 to t10 CNF
+        run: |
+          mkdir -p /tmp/moore57 research/moore57_formal/search/results/diverse-${{ matrix.seed }}
+          python research/moore57_formal/search/extend_one_dimacs.py \
+            research/moore57_formal/search/seeds/moore56-t9.json \
+            --output /tmp/moore57/t10.cnf \
+            --metadata /tmp/moore57/t10-meta.json
+      - name: Generate a t10 sample
+        id: sample
+        shell: bash
+        run: |
+          set +e
+          cadical --seed=${{ matrix.seed }} -t 60 -w /tmp/moore57/t10.sol /tmp/moore57/t10.cnf > /tmp/moore57/t10.log 2>&1
+          RC=$?
+          set -e
+          tail -30 /tmp/moore57/t10.log
+          if [ "$RC" -ne 10 ]; then
+            echo "Expected SAT while sampling t10, got exit $RC"
+            exit 1
+          fi
+          python research/moore57_formal/search/decode_dimacs_model.py \
+            research/moore57_formal/search/seeds/moore56-t9.json \
+            /tmp/moore57/t10-meta.json /tmp/moore57/t10.sol \
+            --output research/moore57_formal/search/results/diverse-${{ matrix.seed }}/t10.json
+      - name: Compile sampled t10 to t11 CNF
+        run: |
+          python research/moore57_formal/search/extend_one_dimacs.py \
+            research/moore57_formal/search/results/diverse-${{ matrix.seed }}/t10.json \
+            --output /tmp/moore57/t11.cnf \
+            --metadata research/moore57_formal/search/results/diverse-${{ matrix.seed }}/t11-meta.json
+      - name: Test t11 extension
+        id: extend
+        shell: bash
+        run: |
+          set +e
+          cadical --seed=$((100 + ${{ matrix.seed }})) -t 180 -w /tmp/moore57/t11.sol /tmp/moore57/t11.cnf > /tmp/moore57/t11.log 2>&1
+          RC=$?
+          set -e
+          tail -60 /tmp/moore57/t11.log
+          if [ "$RC" -eq 10 ]; then STATUS=SATISFIABLE;
+          elif [ "$RC" -eq 20 ]; then STATUS=UNSATISFIABLE;
+          else STATUS=UNKNOWN; fi
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          printf '{"sample_seed":%s,"status":"%s","exit_code":%s}\n' \
+            '${{ matrix.seed }}' "$STATUS" "$RC" \
+            > research/moore57_formal/search/results/diverse-${{ matrix.seed }}/t11-result.json
+      - name: Decode and independently verify t11 if SAT
+        if: steps.extend.outputs.status == 'SATISFIABLE'
+        run: |
+          python research/moore57_formal/search/decode_dimacs_model.py \
+            research/moore57_formal/search/results/diverse-${{ matrix.seed }}/t10.json \
+            research/moore57_formal/search/results/diverse-${{ matrix.seed }}/t11-meta.json \
+            /tmp/moore57/t11.sol \
+            --output research/moore57_formal/search/results/diverse-${{ matrix.seed }}/t11.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: diverse-t10-seed-${{ matrix.seed }}
+          path: research/moore57_formal/search/results/diverse-${{ matrix.seed }}/*.json
