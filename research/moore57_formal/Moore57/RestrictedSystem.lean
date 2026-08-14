@@ -34,11 +34,13 @@ structure RestrictedAllInvolutionSystem (T : Type u) (S : Type v) where
 
 /--
 Any injectively selected family of non-base branches inherits a restricted
-all-involution certificate from a full normalized all-involution system.
+all-involution certificate.  Involutivity is assumed only on non-base fibres,
+which is exactly the hypothesis used by the search; diagonal and base fibres are
+already identities after normalization.
 -/
 noncomputable def ShortCycleSystem.restrictAllInvolution
     {I : Type w} {S : Type v} (D : ShortCycleSystem I S)
-    (hinv : ∀ i j, Function.Involutive (D.phi i j))
+    (hinv : ∀ i j : NonBase D, Function.Involutive (D.phi i.1 j.1))
     {T : Type u} (e : T ↪ NonBase D) : RestrictedAllInvolutionSystem T S where
   p a b := D.phi (e a).1 (e b).1
   diag := by
@@ -46,12 +48,12 @@ noncomputable def ShortCycleSystem.restrictAllInvolution
     exact D.diag (e a).1
   symmetric := by
     intro a b
-    ext x
-    change latinEntry D (e a) (e b) x = latinEntry D (e b) (e a) x
-    exact latinEntry_symm_of_involutive D hinv (e a) (e b) x
+    symm
+    rw [D.rev (e a).1 (e b).1,
+      perm_inv_eq_self_of_involutive (D.phi (e a).1 (e b).1) (hinv (e a) (e b))]
   involutive := by
     intro a b
-    exact hinv (e a).1 (e b).1
+    exact hinv (e a) (e b)
   offdiag_fixedPointFree := by
     intro a b hab x
     apply D.offdiag_fixedPointFree (e a).2 (e b).2
@@ -85,13 +87,13 @@ noncomputable def ShortCycleSystem.restrictAllInvolution
 
 /--
 Contrapositive wrapper: if no restricted certificate exists on a selected branch type,
-then no full all-involution system admitting such a selection can exist.
+then no full non-base all-involution system admitting such a selection can exist.
 -/
 theorem ShortCycleSystem.no_fullAllInvolution_of_no_restriction
     {I : Type w} {S : Type v} (D : ShortCycleSystem I S)
     {T : Type u} (e : T ↪ NonBase D)
     (hNoRestricted : ¬ Nonempty (RestrictedAllInvolutionSystem T S))
-    (hinv : ∀ i j, Function.Involutive (D.phi i j)) : False := by
+    (hinv : ∀ i j : NonBase D, Function.Involutive (D.phi i.1 j.1)) : False := by
   exact hNoRestricted ⟨D.restrictAllInvolution hinv e⟩
 
 end Moore57
