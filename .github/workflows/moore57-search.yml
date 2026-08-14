@@ -7,10 +7,6 @@ on:
     paths:
       - 'research/moore57_formal/search/**'
       - '.github/workflows/moore57-search.yml'
-  pull_request:
-    paths:
-      - 'research/moore57_formal/search/**'
-      - '.github/workflows/moore57-search.yml'
   workflow_dispatch:
 
 jobs:
