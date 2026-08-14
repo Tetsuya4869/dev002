@@ -45,7 +45,8 @@ noncomputable def SimpleGraph.IsSRGWith.toMoore57Relation
 /-- The SRG regularity field is exactly the degree-57 cardinality hypothesis used downstream. -/
 theorem SimpleGraph.IsSRGWith.toMoore57Relation_degree
     (h : G.IsSRGWith 3250 57 0 1) :
-    ∀ v : V, Nat.card ((h.toMoore57Relation).Neighbor v) = 57 := by
+    ∀ v : V,
+      Nat.card ((SimpleGraph.IsSRGWith.toMoore57Relation h).Neighbor v) = 57 := by
   intro v
   rw [Nat.card_eq_fintype_card]
   change Fintype.card (G.neighborSet v) = 57
@@ -58,8 +59,9 @@ the normalized 56-symbol short-cycle system used by the later Lean development.
 -/
 noncomputable def SimpleGraph.IsSRGWith.toShortCycleSystem
     (h : G.IsSRGWith 3250 57 0 1) (r : V)
-    (b : (h.toMoore57Relation).Branch r) :
-    ShortCycleSystem ((h.toMoore57Relation).Branch r) (Fin 56) :=
-  (h.toMoore57Relation).toDegree57ShortCycleSystem r h.toMoore57Relation_degree b
+    (b : (SimpleGraph.IsSRGWith.toMoore57Relation h).Branch r) :
+    ShortCycleSystem ((SimpleGraph.IsSRGWith.toMoore57Relation h).Branch r) (Fin 56) :=
+  (SimpleGraph.IsSRGWith.toMoore57Relation h).toDegree57ShortCycleSystem r
+    (SimpleGraph.IsSRGWith.toMoore57Relation_degree h) b
 
 end Moore57
