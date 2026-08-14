@@ -7,8 +7,8 @@ import Moore57.RestrictedSystem
 
 There are exactly 56 non-base branches in the graph-derived normalized system.  Hence
 for every `t ≤ 56` we can select `Fin t` of them.  If the full normalized system is
-all-involution, restriction then produces the exact abstract certificate required by
-the restricted search.
+all-involution on its non-base fibres, restriction then produces the exact abstract
+certificate required by the restricted search.
 -/
 
 namespace Moore57
@@ -33,16 +33,16 @@ noncomputable def SimpleGraph.IsSRGWith.selectNonBase
   exact (Fin.castLEEmb ht).trans e.symm.toEmbedding
 
 /--
-A full all-involution SRG-derived system yields a restricted certificate for every
-`t ≤ 56`.
+A full non-base all-involution SRG-derived system yields a restricted certificate for
+every `t ≤ 56`.
 -/
 theorem SimpleGraph.IsSRGWith.restricted_certificate_exists
     (h : G.IsSRGWith 3250 57 0 1) (r : V)
     (b : (SimpleGraph.IsSRGWith.toMoore57Relation h).Branch r)
     {t : ℕ} (ht : t ≤ 56)
-    (hinv : ∀ i j,
+    (hinv : ∀ i j : NonBase (SimpleGraph.IsSRGWith.toShortCycleSystem h r b),
       Function.Involutive
-        ((SimpleGraph.IsSRGWith.toShortCycleSystem h r b).phi i j)) :
+        ((SimpleGraph.IsSRGWith.toShortCycleSystem h r b).phi i.1 j.1)) :
     Nonempty (RestrictedAllInvolutionSystem (Fin t) (Fin 56)) := by
   let D := SimpleGraph.IsSRGWith.toShortCycleSystem h r b
   let e := SimpleGraph.IsSRGWith.selectNonBase h r b ht
@@ -50,16 +50,17 @@ theorem SimpleGraph.IsSRGWith.restricted_certificate_exists
 
 /--
 Solver-independent contrapositive: proving that no restricted certificate exists for
-any single `t ≤ 56` rules out the full normalized all-involution SRG-derived system.
+any single `t ≤ 56` rules out the full normalized non-base all-involution SRG-derived
+system.
 -/
 theorem SimpleGraph.IsSRGWith.no_allInvolution_of_no_restricted
     (h : G.IsSRGWith 3250 57 0 1) (r : V)
     (b : (SimpleGraph.IsSRGWith.toMoore57Relation h).Branch r)
     {t : ℕ} (ht : t ≤ 56)
     (hNo : ¬ Nonempty (RestrictedAllInvolutionSystem (Fin t) (Fin 56))) :
-    ¬ (∀ i j,
+    ¬ (∀ i j : NonBase (SimpleGraph.IsSRGWith.toShortCycleSystem h r b),
       Function.Involutive
-        ((SimpleGraph.IsSRGWith.toShortCycleSystem h r b).phi i j)) := by
+        ((SimpleGraph.IsSRGWith.toShortCycleSystem h r b).phi i.1 j.1)) := by
   intro hinv
   exact hNo (SimpleGraph.IsSRGWith.restricted_certificate_exists h r b ht hinv)
 
