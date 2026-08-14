@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
 """CP-SAT search for restricted all-involution Moore matching systems.
 
-A full degree-57 all-involution solution would have n=t=56.  Any such solution
-restricts to every t-subset of the 56 non-base branches, so UNSAT for any
-(t,n=56) already rules out the full all-involution case.
+A full degree-57 all-involution solution would have n=t=56. Any such solution
+restricts to every t-subset of the 56 non-base branches, so a rigorously verified
+UNSAT result for any (t,n=56) would rule out the full normalized all-involution
+subcase.
 
 Variables p_{ij}(x) encode the fixed-point-free involution attached to branch
-edge {i,j}.  The model imposes:
+edge {i,j}. The model imposes:
   * each p_{ij} is a fixed-point-free involution;
   * at each branch i and symbol x, the values p_{ij}(x) are distinct;
   * for each branch pair i<j and symbol x, the stationary route x, direct
     route p_{ij}(x), and all two-step routes p_{kj}(p_{ik}(x)) through the
     other selected branches are all distinct.
 
-The last global-cardinality constraint packages all triangle and 4-cycle
-holonomy restrictions among the selected branches.  For t=n it is exactly the
-route-exhaustion bijection formalized in Moore57.RouteExhaustion.
+The optional --fix-report argument freezes all branch-edge permutations from an
+existing smaller certificate. This is useful for adversarial extension tests: it
+asks whether one concrete t0-branch solution embeds into a larger t-branch one.
+Such a failed extension does NOT by itself prove the full subcase impossible.
 """
 
 from __future__ import annotations
@@ -44,7 +46,6 @@ def build_model(n: int, t: int, fix_first_matching: bool = True):
     model = cp_model.CpModel()
     p: dict[tuple[int, int], list[cp_model.IntVar]] = {}
 
-    # One fixed-point-free involution per selected branch edge.
     for i in range(t):
         for j in range(i + 1, t):
             arr = [model.NewIntVar(0, n - 1, f"p_{i}_{j}_{x}") for x in range(n)]
@@ -52,12 +53,9 @@ def build_model(n: int, t: int, fix_first_matching: bool = True):
             model.AddAllDifferent(arr)
             for x in range(n):
                 model.Add(arr[x] != x)
-                # p[p[x]] = x. This also implies bijectivity, but AllDifferent
-                # is retained because it propagates strongly in CP-SAT.
                 model.AddElement(arr[x], arr, x)
 
-    # WLOG under a global relabeling of the n symbols, fix one involution to
-    # the canonical matching (0 1)(2 3)...(n-2 n-1).
+    # WLOG under one global relabeling of symbols.
     if fix_first_matching and t >= 2:
         arr = p[(0, 1)]
         for x in range(n):
@@ -66,14 +64,10 @@ def build_model(n: int, t: int, fix_first_matching: bool = True):
     def image(i: int, j: int, x: int):
         return p[key(i, j)][x]
 
-    # Short cycles through the normalized base branch: for fixed i,x the
-    # incident matching images are pairwise distinct.
     for i in range(t):
         for x in range(n):
             model.AddAllDifferent([image(i, j, x) for j in range(t) if j != i])
 
-    # Residual holonomy: all selected routes i -> j at a fixed x have distinct
-    # endpoints. This simultaneously excludes the relevant triangles and C4s.
     route_aux = 0
     for i in range(t):
         for j in range(i + 1, t):
@@ -99,8 +93,53 @@ def build_model(n: int, t: int, fix_first_matching: bool = True):
     return model, p, stats
 
 
-def solve(n: int, t: int, seconds: float, workers: int, seed: int, output: Path):
+def apply_fixed_report(model, p, n: int, t: int, report_path: Path | None) -> dict:
+    if report_path is None:
+        return {"fixed_report": None, "fixed_branches": 0, "fixed_values": 0}
+
+    data = json.loads(report_path.read_text(encoding="utf-8"))
+    if int(data["n_symbols"]) != n:
+        raise ValueError("fixed report symbol count does not match --n")
+    t0 = int(data["t_selected_branches"])
+    if t0 > t:
+        raise ValueError("fixed report uses more branches than target --t")
+    sol = data.get("solution")
+    if not isinstance(sol, dict):
+        raise ValueError("fixed report has no solution")
+
+    fixed_values = 0
+    for i in range(t0):
+        for j in range(i + 1, t0):
+            name = f"{i}-{j}"
+            arr = sol.get(name)
+            if not isinstance(arr, list) or len(arr) != n:
+                raise ValueError(f"fixed report has invalid {name}")
+            for x, value in enumerate(arr):
+                value = int(value)
+                if not 0 <= value < n:
+                    raise ValueError(f"fixed report {name}[{x}] out of range")
+                model.Add(p[(i, j)][x] == value)
+                fixed_values += 1
+
+    return {
+        "fixed_report": str(report_path),
+        "fixed_branches": t0,
+        "fixed_values": fixed_values,
+    }
+
+
+def solve(
+    n: int,
+    t: int,
+    seconds: float,
+    workers: int,
+    seed: int,
+    output: Path,
+    fix_report: Path | None,
+):
     model, p, stats = build_model(n, t)
+    stats.update(apply_fixed_report(model, p, n, t, fix_report))
+
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = seconds
     solver.parameters.num_search_workers = workers
@@ -125,8 +164,6 @@ def solve(n: int, t: int, seconds: float, workers: int, seed: int, output: Path)
     }
 
     if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        # Store compact cycle-free involution tables. This is enough to replay
-        # and independently verify the returned restricted system.
         report["solution"] = {
             f"{i}-{j}": [solver.Value(v) for v in arr]
             for (i, j), arr in sorted(p.items())
@@ -136,8 +173,6 @@ def solve(n: int, t: int, seconds: float, workers: int, seed: int, output: Path)
     output.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
     print(json.dumps(report, indent=2, sort_keys=True))
 
-    # UNKNOWN is not a mathematical failure; preserve the report and return 0.
-    # MODEL_INVALID/other unexpected statuses should fail CI.
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE, cp_model.INFEASIBLE, cp_model.UNKNOWN):
         raise SystemExit(2)
 
@@ -149,6 +184,7 @@ if __name__ == "__main__":
     ap.add_argument("--seconds", type=float, default=120.0)
     ap.add_argument("--workers", type=int, default=max(1, min(8, os.cpu_count() or 1)))
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--fix-report", type=Path)
     ap.add_argument("--output", type=Path, required=True)
     args = ap.parse_args()
-    solve(args.n, args.t, args.seconds, args.workers, args.seed, args.output)
+    solve(args.n, args.t, args.seconds, args.workers, args.seed, args.output, args.fix_report)
