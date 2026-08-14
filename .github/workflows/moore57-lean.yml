@@ -30,3 +30,10 @@ jobs:
         run: lake exe cache get
       - name: Kernel-check formalization
         run: lake build
+      - name: Audit proof axioms
+        run: |
+          lake env lean Moore57/AxiomAudit.lean 2>&1 | tee /tmp/moore57-axioms.log
+          if grep -q 'sorryAx' /tmp/moore57-axioms.log; then
+            echo 'ERROR: sorryAx detected in a central theorem'
+            exit 1
+          fi
