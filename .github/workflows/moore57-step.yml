@@ -5,7 +5,7 @@ on:
     branches:
       - agent/moore57-formal-verification
     paths:
-      - 'research/moore57_formal/search/seeds/moore56-t9.json'
+      - 'research/moore57_formal/search/seeds/moore56-t10.json'
       - '.github/workflows/moore57-step.yml'
   workflow_dispatch:
 
@@ -16,17 +16,17 @@ jobs:
       fail-fast: false
       matrix:
         case:
-          - { name: extend-t9-to-t10, t: 10, seconds: 300 }
-          - { name: extend-t9-to-t11, t: 11, seconds: 600 }
+          - { name: extend-t10-to-t11, t: 11, seconds: 300 }
+          - { name: extend-t10-to-t12, t: 12, seconds: 600 }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Independently verify t9 seed
+      - name: Independently verify t10 seed
         run: |
           python research/moore57_formal/search/verify_solution.py \
-            research/moore57_formal/search/seeds/moore56-t9.json
+            research/moore57_formal/search/seeds/moore56-t10.json
       - name: Install OR-Tools
         run: python -m pip install 'ortools==9.15.6755'
       - name: Search extension
@@ -34,8 +34,8 @@ jobs:
           mkdir -p research/moore57_formal/search/results
           python research/moore57_formal/search/all_involution_cp_sat.py \
             --n 56 --t ${{ matrix.case.t }} \
-            --seconds ${{ matrix.case.seconds }} --workers 4 --seed 23 \
-            --fix-report research/moore57_formal/search/seeds/moore56-t9.json \
+            --seconds ${{ matrix.case.seconds }} --workers 4 --seed 29 \
+            --fix-report research/moore57_formal/search/seeds/moore56-t10.json \
             --output research/moore57_formal/search/results/${{ matrix.case.name }}.json
       - name: Independently verify any returned extension
         run: |
