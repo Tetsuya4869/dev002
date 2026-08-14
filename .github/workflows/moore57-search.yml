@@ -41,7 +41,24 @@ jobs:
             --workers 4 \
             --seed 1 \
             --output research/moore57_formal/search/results/${{ matrix.case.name }}.json
+      - name: Independently verify any returned certificate
+        run: |
+          REPORT=research/moore57_formal/search/results/${{ matrix.case.name }}.json
+          VERIFY=research/moore57_formal/search/results/${{ matrix.case.name }}-verification.json
+          python - "$REPORT" "$VERIFY" <<'PY'
+          import json, subprocess, sys
+          report, verify = sys.argv[1], sys.argv[2]
+          data = json.load(open(report, encoding='utf-8'))
+          if 'solution' not in data:
+              print(f"No certificate to verify (status={data.get('status')})")
+              raise SystemExit(0)
+          subprocess.run([
+              sys.executable,
+              'research/moore57_formal/search/verify_solution.py',
+              report, '--output', verify,
+          ], check=True)
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.case.name }}
-          path: research/moore57_formal/search/results/${{ matrix.case.name }}.json
+          path: research/moore57_formal/search/results/${{ matrix.case.name }}*.json
