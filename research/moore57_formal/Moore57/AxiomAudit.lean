@@ -1,5 +1,6 @@
 import Moore57.SRGConsequences
 import Moore57.SRGRestricted
+import Moore57.DualMatching
 import Moore57.FixedPoints
 
 /-!
@@ -15,3 +16,4 @@ formal results.
 #print axioms Moore57.SimpleGraph.IsSRGWith.routeEndpoint_bijective
 #print axioms Moore57.ShortCycleSystem.no_fullAllInvolution_of_no_restriction
 #print axioms Moore57.SimpleGraph.IsSRGWith.no_allInvolution_of_no_restricted
+#print axioms Moore57.RestrictedAllInvolutionSystem.dualMatching_fixedPointFree
