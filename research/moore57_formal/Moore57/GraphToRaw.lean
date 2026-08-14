@@ -15,12 +15,14 @@ universe u v
 /-- Graph-derived matching permutation, with the diagonal defined as the identity. -/
 noncomputable def RootedCoordinates.rawPhi
     {V : Type u} {M : MooreRelation V} {r : V} {S : Type v}
-    (C : RootedCoordinates M r S) (i j : M.Branch r) : Equiv.Perm S :=
-  if h : i = j then 1 else C.crossEquiv h
+    (C : RootedCoordinates M r S) (i j : M.Branch r) : Equiv.Perm S := by
+  classical
+  exact if h : i = j then 1 else C.crossEquiv h
 
 @[simp] theorem RootedCoordinates.rawPhi_diag
     {V : Type u} {M : MooreRelation V} {r : V} {S : Type v}
     (C : RootedCoordinates M r S) (i : M.Branch r) : C.rawPhi i i = 1 := by
+  classical
   simp [RootedCoordinates.rawPhi]
 
 /-- Reverse orientation is the inverse matching. -/
@@ -28,6 +30,7 @@ theorem RootedCoordinates.rawPhi_rev
     {V : Type u} {M : MooreRelation V} {r : V} {S : Type v}
     (C : RootedCoordinates M r S) (i j : M.Branch r) :
     C.rawPhi j i = (C.rawPhi i j)⁻¹ := by
+  classical
   by_cases h : i = j
   · subst j
     simp
@@ -39,6 +42,7 @@ theorem RootedCoordinates.rawPhi_eq_crossEquiv
     {V : Type u} {M : MooreRelation V} {r : V} {S : Type v}
     (C : RootedCoordinates M r S) {i j : M.Branch r} (hij : i ≠ j) :
     C.rawPhi i j = C.crossEquiv hij := by
+  classical
   simp [RootedCoordinates.rawPhi, hij]
 
 /-- Applying a graph-derived raw matching really gives an edge between the two leaves. -/
@@ -48,7 +52,7 @@ theorem RootedCoordinates.rawPhi_edge
     M.adj (C.coord i x).1 (C.coord j (C.rawPhi i j x)).1 := by
   rw [C.rawPhi_eq_crossEquiv hij]
   change M.adj (C.coord i x).1 (C.coord j (C.crossLabel hij x)).1
-  rw [(C.coord j).apply_symm_apply (C.crossLeaf hij x)]
+  simp only [RootedCoordinates.crossLabel, Equiv.apply_symm_apply]
   exact C.adj_leaf_crossVertex hij x
 
 /-- A three-step return would be a triangle, hence is impossible. -/
