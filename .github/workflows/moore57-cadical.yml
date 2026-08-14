@@ -1,0 +1,101 @@
+name: Moore57 direct CNF CaDiCaL
+
+on:
+  push:
+    branches:
+      - agent/moore57-formal-verification
+    paths:
+      - 'research/moore57_formal/search/extend_one_dimacs.py'
+      - 'research/moore57_formal/search/decode_dimacs_model.py'
+      - 'research/moore57_formal/search/verify_solution.py'
+      - 'research/moore57_formal/search/seeds/moore56-t8.json'
+      - 'research/moore57_formal/search/seeds/moore56-t9.json'
+      - 'research/moore57_formal/search/seeds/moore56-t10.json'
+      - '.github/workflows/moore57-cadical.yml'
+  workflow_dispatch:
+
+jobs:
+  solve:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        case:
+          - { name: regression-t8-to-t9, seed: moore56-t8, seconds: 180, require_sat: true }
+          - { name: regression-t9-to-t10, seed: moore56-t9, seconds: 300, require_sat: true }
+          - { name: target-t10-to-t11, seed: moore56-t10, seconds: 600, require_sat: false }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CaDiCaL from Ubuntu 24.04
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cadical
+          cadical --version
+      - name: Independently verify input seed
+        run: |
+          python research/moore57_formal/search/verify_solution.py \
+            research/moore57_formal/search/seeds/${{ matrix.case.seed }}.json
+      - name: Compile direct DIMACS CNF
+        run: |
+          mkdir -p /tmp/moore57 research/moore57_formal/search/results
+          python research/moore57_formal/search/extend_one_dimacs.py \
+            research/moore57_formal/search/seeds/${{ matrix.case.seed }}.json \
+            --output /tmp/moore57/problem.cnf \
+            --metadata research/moore57_formal/search/results/${{ matrix.case.name }}-cnf.json
+          ls -lh /tmp/moore57/problem.cnf
+          head -1 /tmp/moore57/problem.cnf
+      - name: Solve with CaDiCaL
+        id: cadical
+        shell: bash
+        run: |
+          set +e
+          cadical -t ${{ matrix.case.seconds }} \
+            -w /tmp/moore57/witness.sol \
+            /tmp/moore57/problem.cnf \
+            > /tmp/moore57/cadical.log 2>&1
+          RC=$?
+          set -e
+          tail -80 /tmp/moore57/cadical.log
+          echo "exit_code=$RC" >> "$GITHUB_OUTPUT"
+          if [ "$RC" -eq 10 ]; then
+            echo "status=SATISFIABLE" >> "$GITHUB_OUTPUT"
+          elif [ "$RC" -eq 20 ]; then
+            echo "status=UNSATISFIABLE" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=UNKNOWN" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Decode and independently verify SAT witness
+        if: steps.cadical.outputs.status == 'SATISFIABLE'
+        run: |
+          python research/moore57_formal/search/decode_dimacs_model.py \
+            research/moore57_formal/search/seeds/${{ matrix.case.seed }}.json \
+            research/moore57_formal/search/results/${{ matrix.case.name }}-cnf.json \
+            /tmp/moore57/witness.sol \
+            --output research/moore57_formal/search/results/${{ matrix.case.name }}-certificate.json
+      - name: Record solver result
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path=Path('research/moore57_formal/search/results/${{ matrix.case.name }}-result.json')
+          path.write_text(json.dumps({
+            'solver':'CaDiCaL',
+            'status':'${{ steps.cadical.outputs.status }}',
+            'exit_code':int('${{ steps.cadical.outputs.exit_code }}'),
+            'time_limit_seconds':${{ matrix.case.seconds }},
+          }, indent=2, sort_keys=True)+'\n')
+          PY
+      - name: Require SAT for regression cases
+        if: ${{ matrix.case.require_sat }}
+        run: |
+          test '${{ steps.cadical.outputs.status }}' = 'SATISFIABLE' || {
+            echo 'REGRESSION FAILURE: direct CNF solver did not recover a known extendable case'
+            exit 1
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.case.name }}
+          path: research/moore57_formal/search/results/${{ matrix.case.name }}-*.json
