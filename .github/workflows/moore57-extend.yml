@@ -1,0 +1,73 @@
+name: Moore57 seeded extension search
+
+on:
+  push:
+    branches:
+      - agent/moore57-formal-verification
+    paths:
+      - 'research/moore57_formal/search/all_involution_cp_sat.py'
+      - 'research/moore57_formal/search/verify_solution.py'
+      - 'research/moore57_formal/search/seeds/**'
+      - '.github/workflows/moore57-extend.yml'
+  workflow_dispatch:
+
+jobs:
+  verify-seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Independently verify frozen t6 certificate
+        run: |
+          python research/moore57_formal/search/verify_solution.py \
+            research/moore57_formal/search/seeds/moore56-t6.json
+
+  extend:
+    needs: verify-seed
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        case:
+          - { name: extend-t6-to-t7, t: 7, seconds: 300 }
+          - { name: extend-t6-to-t8, t: 8, seconds: 600 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install OR-Tools
+        run: python -m pip install 'ortools==9.15.6755'
+      - name: Search extension of the fixed certificate
+        run: |
+          mkdir -p research/moore57_formal/search/results
+          python research/moore57_formal/search/all_involution_cp_sat.py \
+            --n 56 \
+            --t ${{ matrix.case.t }} \
+            --seconds ${{ matrix.case.seconds }} \
+            --workers 4 \
+            --seed 11 \
+            --fix-report research/moore57_formal/search/seeds/moore56-t6.json \
+            --output research/moore57_formal/search/results/${{ matrix.case.name }}.json
+      - name: Independently verify any extension certificate
+        run: |
+          REPORT=research/moore57_formal/search/results/${{ matrix.case.name }}.json
+          python - "$REPORT" <<'PY'
+          import json, subprocess, sys
+          report = sys.argv[1]
+          data = json.load(open(report, encoding='utf-8'))
+          if 'solution' not in data:
+              print(f"No extension certificate returned (status={data.get('status')})")
+              raise SystemExit(0)
+          subprocess.run([
+              sys.executable,
+              'research/moore57_formal/search/verify_solution.py',
+              report,
+          ], check=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.case.name }}
+          path: research/moore57_formal/search/results/${{ matrix.case.name }}.json
