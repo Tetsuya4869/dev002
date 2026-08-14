@@ -60,6 +60,7 @@ theorem RawShortCycleSystem.gaugePhi_rev
   change (D.gauge b i).symm (D.phi j i (D.gauge b j x)) =
     (D.gauge b i).symm ((D.phi i j).symm (D.gauge b j x))
   rw [D.rev i j]
+  rfl
 
 /-- Every base-to-branch matching becomes the identity. -/
 theorem RawShortCycleSystem.gaugePhi_base
