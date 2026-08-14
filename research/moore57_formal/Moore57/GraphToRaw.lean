@@ -34,8 +34,9 @@ theorem RootedCoordinates.rawPhi_rev
   by_cases h : i = j
   · subst j
     simp
-  · rw [RootedCoordinates.rawPhi, dif_neg h,
-      RootedCoordinates.rawPhi, dif_neg (Ne.symm h), C.crossEquiv_rev h]
+  · have hji : j ≠ i := Ne.symm h
+    simp only [RootedCoordinates.rawPhi, dif_neg hji, dif_neg h]
+    exact C.crossEquiv_rev h
 
 /-- In off-diagonal fibres the raw permutation is exactly the graph-derived cross matching. -/
 theorem RootedCoordinates.rawPhi_eq_crossEquiv
