@@ -48,9 +48,8 @@ theorem SimpleGraph.IsSRGWith.toMoore57Relation_degree
     ∀ v : V,
       Nat.card ((SimpleGraph.IsSRGWith.toMoore57Relation h).Neighbor v) = 57 := by
   intro v
-  rw [Nat.card_eq_fintype_card]
-  change Fintype.card (G.neighborSet v) = 57
-  rw [G.card_neighborSet_eq_degree]
+  change Nat.card (G.neighborSet v) = 57
+  rw [Nat.card_eq_fintype_card, G.card_neighborSet_eq_degree]
   exact h.regular.degree_eq v
 
 /--
