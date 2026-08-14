@@ -1,0 +1,49 @@
+name: Moore57 fast extension chain
+
+on:
+  push:
+    branches:
+      - agent/moore57-formal-verification
+    paths:
+      - 'research/moore57_formal/search/extend_one_cp_sat.py'
+      - 'research/moore57_formal/search/extend_chain.py'
+      - 'research/moore57_formal/search/verify_solution.py'
+      - 'research/moore57_formal/search/seeds/moore56-t10.json'
+      - '.github/workflows/moore57-chain.yml'
+  workflow_dispatch:
+
+jobs:
+  chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Independently verify t10 seed
+        run: |
+          python research/moore57_formal/search/verify_solution.py \
+            research/moore57_formal/search/seeds/moore56-t10.json
+      - name: Install OR-Tools
+        run: python -m pip install 'ortools==9.15.6755'
+      - name: Extend one branch at a time
+        run: |
+          python research/moore57_formal/search/extend_chain.py \
+            research/moore57_formal/search/seeds/moore56-t10.json \
+            --max-t 16 \
+            --seconds-per-step 180 \
+            --workers 4 \
+            --seed 41 \
+            --output-dir research/moore57_formal/search/results/fast-chain
+      - name: Independently reverify every returned certificate
+        run: |
+          for f in research/moore57_formal/search/results/fast-chain/moore56-t*.json; do
+            if [ -f "$f" ] && grep -q '"solution"' "$f"; then
+              echo "Verifying $f"
+              python research/moore57_formal/search/verify_solution.py "$f"
+            fi
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fast-chain
+          path: research/moore57_formal/search/results/fast-chain/*.json
