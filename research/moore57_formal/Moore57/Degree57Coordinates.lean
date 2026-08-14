@@ -20,20 +20,23 @@ abbrev MooreRelation.Neighbor {V : Type u} (M : MooreRelation V) (v : V) :=
 /-- A branch neighbourhood is the root plus its leaf fibre. -/
 noncomputable def MooreRelation.neighborEquivOptionLeaf
     {V : Type u} (M : MooreRelation V) {r : V} (i : M.Branch r) :
-    M.Neighbor i.1 ≃ Option (M.Leaf r i) where
-  toFun n := if h : n.1 = r then none else some ⟨n.1, n.2, h⟩
-  invFun o := match o with
-    | none => ⟨r, M.symm i.2⟩
-    | some x => ⟨x.1, x.2.1⟩
-  left_inv := by
-    intro n
+    M.Neighbor i.1 ≃ Option (M.Leaf r i) := by
+  classical
+  refine {
+    toFun := fun n => if h : n.1 = r then none else some ⟨n.1, n.2, h⟩
+    invFun := fun o => match o with
+      | none => ⟨r, M.symm i.2⟩
+      | some x => ⟨x.1, x.2.1⟩
+    left_inv := ?_
+    right_inv := ?_
+  }
+  · intro n
     by_cases h : n.1 = r
     · apply Subtype.ext
-      simpa [h]
+      simp [h]
     · apply Subtype.ext
       simp [h]
-  right_inv := by
-    intro o
+  · intro o
     cases o with
     | none => simp
     | some x => simp [x.2.2]
@@ -71,16 +74,19 @@ noncomputable def MooreRelation.rootedCoordinatesFin56
 /-- Removing a chosen base branch leaves 56 non-base branches. -/
 noncomputable def MooreRelation.branchEquivOptionNonBase
     {V : Type u} (M : MooreRelation V) {r : V} (b : M.Branch r) :
-    M.Branch r ≃ Option {i : M.Branch r // i ≠ b} where
-  toFun i := if h : i = b then none else some ⟨i, h⟩
-  invFun o := match o with
-    | none => b
-    | some i => i.1
-  left_inv := by
-    intro i
+    M.Branch r ≃ Option {i : M.Branch r // i ≠ b} := by
+  classical
+  refine {
+    toFun := fun i => if h : i = b then none else some ⟨i, h⟩
+    invFun := fun o => match o with
+      | none => b
+      | some i => i.1
+    left_inv := ?_
+    right_inv := ?_
+  }
+  · intro i
     by_cases h : i = b <;> simp [h]
-  right_inv := by
-    intro o
+  · intro o
     cases o with
     | none => simp
     | some i => simp [i.2]
