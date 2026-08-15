@@ -14,8 +14,9 @@ jobs:
   analyze:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        seed: [moore56-t6, moore56-t8]
+        seed: [moore56-t6, moore56-t8, moore56-t10, moore56-t10-cadical]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
