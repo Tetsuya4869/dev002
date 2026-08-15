@@ -1,0 +1,39 @@
+name: Moore57 Lean verification
+
+on:
+  push:
+    branches:
+      - agent/moore57-formal-verification
+    paths:
+      - 'research/moore57_formal/**'
+      - '.github/workflows/moore57-lean.yml'
+  pull_request:
+    paths:
+      - 'research/moore57_formal/**'
+      - '.github/workflows/moore57-lean.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: research/moore57_formal
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Update dependencies
+        run: lake update
+      - name: Fetch mathlib cache
+        run: lake exe cache get
+      - name: Kernel-check formalization
+        run: lake build
+      - name: Audit proof axioms
+        run: |
+          lake env lean Moore57/AxiomAudit.lean 2>&1 | tee /tmp/moore57-axioms.log
+          if grep -q 'sorryAx' /tmp/moore57-axioms.log; then
+            echo 'ERROR: sorryAx detected in a central theorem'
+            exit 1
+          fi

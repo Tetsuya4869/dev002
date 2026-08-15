@@ -1,0 +1,54 @@
+name: Moore57 Boolean extension search
+
+on:
+  push:
+    branches:
+      - agent/moore57-formal-verification
+    paths:
+      - 'research/moore57_formal/search/extend_one_boolean_cp_sat.py'
+      - 'research/moore57_formal/search/verify_solution.py'
+      - 'research/moore57_formal/search/seeds/moore56-t10.json'
+      - '.github/workflows/moore57-boolean-extend.yml'
+  workflow_dispatch:
+
+jobs:
+  extend:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        random_seed: [101, 202, 303]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Independently verify t10 seed
+        run: |
+          python research/moore57_formal/search/verify_solution.py \
+            research/moore57_formal/search/seeds/moore56-t10.json
+      - name: Install OR-Tools
+        run: python -m pip install 'ortools==9.15.6755'
+      - name: Run Boolean edge exact-cover encoding
+        run: |
+          mkdir -p research/moore57_formal/search/results
+          python research/moore57_formal/search/extend_one_boolean_cp_sat.py \
+            research/moore57_formal/search/seeds/moore56-t10.json \
+            --seconds 300 --workers 4 --seed ${{ matrix.random_seed }} \
+            --output research/moore57_formal/search/results/boolean-t11-${{ matrix.random_seed }}.json
+      - name: Independently verify any certificate in a fresh process
+        run: |
+          REPORT=research/moore57_formal/search/results/boolean-t11-${{ matrix.random_seed }}.json
+          python - "$REPORT" <<'PY'
+          import json, subprocess, sys
+          report=sys.argv[1]
+          data=json.load(open(report, encoding='utf-8'))
+          if 'solution' not in data:
+              print(f"No Boolean extension certificate (status={data.get('status')})")
+              raise SystemExit(0)
+          subprocess.run([sys.executable,'research/moore57_formal/search/verify_solution.py',report],check=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boolean-t11-${{ matrix.random_seed }}
+          path: research/moore57_formal/search/results/boolean-t11-${{ matrix.random_seed }}.json

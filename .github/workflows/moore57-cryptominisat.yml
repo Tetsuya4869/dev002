@@ -1,0 +1,77 @@
+name: Moore57 direct CNF CryptoMiniSat
+
+on:
+  push:
+    branches:
+      - agent/moore57-formal-verification
+    paths:
+      - 'research/moore57_formal/search/extend_one_dimacs.py'
+      - 'research/moore57_formal/search/decode_dimacs_model.py'
+      - 'research/moore57_formal/search/seeds/moore56-t10.json'
+      - 'research/moore57_formal/search/seeds/moore56-t10-cadical.json'
+      - '.github/workflows/moore57-cryptominisat.yml'
+  workflow_dispatch:
+
+jobs:
+  solve:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        case:
+          - { name: original, seed: moore56-t10, random_seed: 501 }
+          - { name: cadical-alt, seed: moore56-t10-cadical, random_seed: 502 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CryptoMiniSat
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cryptominisat
+          cryptominisat5 --version
+      - name: Independently verify seed
+        run: python research/moore57_formal/search/verify_solution.py research/moore57_formal/search/seeds/${{ matrix.case.seed }}.json
+      - name: Compile direct CNF
+        run: |
+          mkdir -p /tmp/moore57 research/moore57_formal/search/results
+          python research/moore57_formal/search/extend_one_dimacs.py \
+            research/moore57_formal/search/seeds/${{ matrix.case.seed }}.json \
+            --output /tmp/moore57/problem.cnf \
+            --metadata research/moore57_formal/search/results/cms-${{ matrix.case.name }}-cnf.json
+      - name: Solve with CryptoMiniSat
+        id: cms
+        shell: bash
+        run: |
+          set +e
+          cryptominisat5 --verb 1 --maxtime 600 --threads 4 --random ${{ matrix.case.random_seed }} \
+            /tmp/moore57/problem.cnf > /tmp/moore57/cms.log 2>&1
+          RC=$?
+          set -e
+          tail -100 /tmp/moore57/cms.log
+          echo "exit_code=$RC" >> "$GITHUB_OUTPUT"
+          if grep -q '^s SATISFIABLE' /tmp/moore57/cms.log; then
+            echo "status=SATISFIABLE" >> "$GITHUB_OUTPUT"
+          elif grep -q '^s UNSATISFIABLE' /tmp/moore57/cms.log; then
+            echo "status=UNSATISFIABLE" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=UNKNOWN" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Decode and independently verify SAT witness
+        if: steps.cms.outputs.status == 'SATISFIABLE'
+        run: |
+          python research/moore57_formal/search/decode_dimacs_model.py \
+            research/moore57_formal/search/seeds/${{ matrix.case.seed }}.json \
+            research/moore57_formal/search/results/cms-${{ matrix.case.name }}-cnf.json \
+            /tmp/moore57/cms.log \
+            --output research/moore57_formal/search/results/cms-${{ matrix.case.name }}-certificate.json
+      - name: Record result
+        run: |
+          printf '{"solver":"CryptoMiniSat","status":"%s","exit_code":%s}\n' \
+            '${{ steps.cms.outputs.status }}' '${{ steps.cms.outputs.exit_code }}' \
+            > research/moore57_formal/search/results/cms-${{ matrix.case.name }}-result.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cms-${{ matrix.case.name }}
+          path: research/moore57_formal/search/results/cms-${{ matrix.case.name }}-*.json

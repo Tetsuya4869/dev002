@@ -1,0 +1,65 @@
+name: Moore57 CaDiCaL alternate t10 seed
+
+on:
+  push:
+    branches:
+      - agent/moore57-formal-verification
+    paths:
+      - 'research/moore57_formal/search/seeds/moore56-t10-cadical.json'
+      - 'research/moore57_formal/search/extend_one_dimacs.py'
+      - 'research/moore57_formal/search/decode_dimacs_model.py'
+      - '.github/workflows/moore57-cadical-altseed.yml'
+  workflow_dispatch:
+
+jobs:
+  solve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CaDiCaL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cadical
+          cadical --version
+      - name: Independently verify alternate t10 seed
+        run: python research/moore57_formal/search/verify_solution.py research/moore57_formal/search/seeds/moore56-t10-cadical.json
+      - name: Compile direct CNF
+        run: |
+          mkdir -p /tmp/moore57 research/moore57_formal/search/results
+          python research/moore57_formal/search/extend_one_dimacs.py \
+            research/moore57_formal/search/seeds/moore56-t10-cadical.json \
+            --output /tmp/moore57/problem.cnf \
+            --metadata research/moore57_formal/search/results/alt-t10-to-t11-cnf.json
+      - name: Solve
+        id: solve
+        shell: bash
+        run: |
+          set +e
+          cadical -t 600 -w /tmp/moore57/witness.sol /tmp/moore57/problem.cnf > /tmp/moore57/cadical.log 2>&1
+          RC=$?
+          set -e
+          tail -80 /tmp/moore57/cadical.log
+          echo "exit_code=$RC" >> "$GITHUB_OUTPUT"
+          if [ "$RC" -eq 10 ]; then echo "status=SATISFIABLE" >> "$GITHUB_OUTPUT";
+          elif [ "$RC" -eq 20 ]; then echo "status=UNSATISFIABLE" >> "$GITHUB_OUTPUT";
+          else echo "status=UNKNOWN" >> "$GITHUB_OUTPUT"; fi
+      - name: Decode and independently verify SAT witness
+        if: steps.solve.outputs.status == 'SATISFIABLE'
+        run: |
+          python research/moore57_formal/search/decode_dimacs_model.py \
+            research/moore57_formal/search/seeds/moore56-t10-cadical.json \
+            research/moore57_formal/search/results/alt-t10-to-t11-cnf.json \
+            /tmp/moore57/witness.sol \
+            --output research/moore57_formal/search/results/alt-t10-to-t11-certificate.json
+      - name: Record result
+        run: |
+          printf '{"solver":"CaDiCaL","status":"%s","exit_code":%s}\n' \
+            '${{ steps.solve.outputs.status }}' '${{ steps.solve.outputs.exit_code }}' \
+            > research/moore57_formal/search/results/alt-t10-to-t11-result.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alt-t10-to-t11
+          path: research/moore57_formal/search/results/alt-t10-to-t11-*.json
